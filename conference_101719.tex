@@ -6,7 +6,9 @@
 \usepackage{algorithmic}
 \usepackage{graphicx}
 \usepackage{textcomp}
+\usepackage{comment}
 \usepackage{xcolor}
+\usepackage[hidelinks]{hyperref}
 \def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
     T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
 \begin{document}
@@ -38,29 +40,73 @@
 \maketitle
 
 \begin{abstract}
-This research is looking for a solution that help trekking people, and stimulate the interest of people who like mushrooms in going for a walk in the woods improving their health.\\
-This work provide a smarter and experimental support for trekking peoples, that allow them to focus only on the risk of their journey leaving to MushDex the detection and classification in real-time of mushrooms in the area around. 
+This research aims to find a solution that helps hikers and encourages mushroom enthusiasts to take walks in the woods in order to improve their health. The main goal of the project is to provide smart experimental support for hikers, allowing them to focus solely on the risks of their journey while leaving the real-time detection and classification of mushrooms in the surrounding area to MushDex. Thanks to optimal illumination and camera rotation provided by a powerful LED and MEMS systems, and the access to the largest available mushroom image libraries, a neural network model is able to perform real-time inference to detect and classify the mushrooms present in the scene. The device alerts the user only when a mushroom species appears, allowing them to enjoy their walk without distractions.\\
+This work must be understood as an investigation of the potential of a portable and inexpensive device in the field of mushroom object detection, and as such it does not want in any way to replace the work of a mycologist, but, thanks to the multi-output functionality and the vast amount of classes present in the problem addressed, it can be a support for a further search for the genera and species of fungi named by the device, possibly with a DNA analysis.
 \end{abstract}
 
 \begin{IEEEkeywords}
-mushroom, detection, classification.
+classification, dataset, detection, mushroom, raspberry.
 \end{IEEEkeywords}
 
 \section{Introduction}
-In the year 2023 the data provided by Alpine and Speleological Rescue activities show a number of 12,365 people rescued, of which 7,622 injured and 491 deceased\cite{b1}. These values increase adding also those providing by the Department of Health Activities, that measured 10 thousand Italians per year, between mild and more serious cases, with symptoms ranging from gastrointestinal problems to neurological complications, up to death.\\
-Unfortunately the events of Covid19 make people more comfortable to stay at home left a little part of their sanity, this improved also for those cases of living in a big cemented city.\\
-Making a walk in a forest is very healthy, and also reduce stress. The idea is to use the interest of people in mushrooms to stimulate them to go out for a forest walk in a more safety way. Using MushDex, a person can walk freely of negative thoughts.\\
-We cannot directly solve the problems linked with the environment dangers, this is left to the foresters of the countries. But we can left to people to be more focused on their journey, leaving them free of think of where there should be a mushroom, which is the reason for their trekking. In this way they are more ready to forest dangers.\\
-There are already many available identification of mushrooms applications, but the majority of them are not open source, require payment, and they have no enough accuracy in real-time inference.\\
-In order to achieve the goal, we trained on a PC Desktop the state-of-art network YOLOv10x on a trustful custom dataset, to produce boxes on a dataset of photos obtained by combining MushroomObserver and DanishFungi datasets, creating a new dataset. A weaker architecture, YOLOv10n, is then trained on this dataset created by the previous network. The labels were modified according to the folders containing the photos.\\
-Our challenge is to implement this trained detection program on a pocket-sized device made by a raspberry pi zero2, with 512 MB SDRAM and CPU of 1GHz Quad-Core 64 bit Arm Cortex-A53.\\
-It takes input real time images by a detection camera accompanied by a LED light that lights the area if the intensity is not enough. In this way the hardware can be self-consistence with the environment conditions.\\
-Then it speaks to the user the genus and the specie of belonging.
+In the year 2023, the data provided by the Alpine and Speleological Rescue Activities shows 12.365 people were rescued because of hiking-related problems; of these people, 7.622 were injured and 491 were found deceased\cite{CNSAS}. These numbers increase when adding the data from the Department of Health Activities, which recorded 10.000 Italians per year experiencing a range of cases from mild to more severe, with symptoms including gastrointestinal issues, neurological complications, and even death. Unfortunately, the events of COVID-19 have made people more comfortable staying at home, causing deterioration of the general mental well-being, especially for those living in large concrete cities. Taking a walk in the forest is highly beneficial for health and helps in reducing stress.\\
+The idea behind MushDex is to leverage people's interest in mushrooms to stimulate them to take forest walks in a safer way. Using MushDex, a person can walk free from negative thoughts. Therefore, while we cannot directly solve the issues linked with the environmental dangers-that responsibility falls to the foresters of each country-we can help individuals focus more on their journey by allowing them to know where they could find mushrooms. In this way, they are more aware of their surroundings and concentrated on avoiding potential forest dangers.\\
+In order to achieve our goal, we trained the state-of-the-art object detection network YOLOv10\cite{wang2024yolov10} on reliable custom datasets to generate boxes on a set of photos obtained by combining datasets. Due to the nature of this combined collection, we first needed to train different classification models to label the mushrooms of unknown species but known genus. This was essential to prevent data loss and to organize the photos into the right folders, named after the probable species. As if that were not enough, we used the same model to replace the "mushroom" label with the most confident prediction for each box in the dataset used for YOLOv10. By combining all the images, now containing boxes around mushrooms and labels with their species' names, we created the largest collection of mushroom pictures for the training of detection neural networks, and with the largest number of classes for a problem of this kind.\\
+Since our challenge is to implement the trained detection model on a pocket-sized device, specifically the Raspberry Pi Zero 2W\cite{raspberrypi2021zero2wbrief}, a more lightweight model was trained on our dataset to enable a fast enough inference on this device. The system takes as input the real-time images from a detection camera, accompanied by an LED light illuminating the area when the ambient light is not sufficient. In this way, the hardware can be self-consistent with the environmental conditions. An inertial system communicates with the camera, applying the right transformation to analyze the frames more as an ideal condition. Finally, the device communicates the genus and species of the identified mushrooms to the user through a speaker.\\
+After an overview of the related works for the problem addressed, we present the guidelines for the creation of the dataset used, explaining our approach when dealing with large-scale downloading of photos on the web. The problems of data scarcity, data quantity, and unbalanced data are also addressed.\\
+Below, we talk in more detail about the neural network models used, justifying the preferred choices for the different trainings.\\
+Next, it's about the sensor for lighting the scene, the image capture capability of our device, and the audio output.\\
+The section dedicated to experimental results will raise measures to be implemented and problems to be solved, opening the doors for future ideas and work.
 
 \section{Related Works}
-There exists already an open source app for the identification of mushrooms from its photo: fungID, but the user still need to detect the mushrooms, make a photo going close and eventually also take it, in this way exposing itself to a possible spore poisoning. Moreover the user reduce its attention on the journey in the forest, because redirected on the mushroom detection, increasing the risk connected to this.\\
-A real-time app also exists: \textbf{Riconoscere funghi - Identific}, but it is not based on YOLOv10x and it is really incorrect during this process.
-		
+The majority of available applications for the identification of mushrooms are not open source, and lack the number of species and necessary accuracy for real-time inference.\\
+An example of paid mushroom identification app is picture mushroom, which uses a multi-input photos to produce an output. Unfortunately, some edibility labels are incorrect, and because this characteristic is different across the nationalities, we have no interest in it, limiting ourselves only in the species recognition\cite{book}.\\
+Mushroomizer is a good real-time app for android only, but it is not open source, and the detection using a smartphone while walking is risky.\\
+Shroomify is as an encyclopedia of mushrooms, and not an unsupervised detection app.\\
+Riconoscere funghi-Identific is a valid free application, but it is really incorrect during the process of real-time scan, focusing more on the photo classification.\\
+ShroomID is a solid classification app and in particular FungID is also open source, but the user still need to detect the mushrooms, make a photo going close and eventually also take it, spoiling the nature and exposing itself to micotoxins poisoning. Moreover the user reduce its attention on the journey in the forest, because redirected on the mushroom detection, increasing the risk connected to this.\\
+There exists accessible datasets for projects about fungi, for example in \cite{kaggle_mushroom_datasets} and \cite{roboflow_mushroom_datasets}, and these are the instruments for building robust models.\\
+\cite{bouganssa2024recognition} is a similar work, but its classes are totally different and the dataset contains a number of photos which is lesser than the number of our classes. Anyway, this work is an example of real-time mushroom detection on an embedded system, which is, in particular, our testing device: if something cannot run on a raspberry pi 400, neither can on a raspberry pi zero 2W.\\
+\cite{shafik2024transfer} concerns a different kingdom, but provides a solid example of object detection and classification similar to what we want. Anyway, our dataset is possibly the hardest benchmark on the fungi kingdom available, and the methods and the scale we have in our problem are unique. This is to be intended as an impossibility to mushroom detection and classification for all the species discovered, just by providing photos: biological analysis is required to get a confidence possibly near 100\%.
+
+\section{Methodologies}
+
+\subsection{Dataset creation}
+%TODO
+A bad dataset is directly associated to a bad neural network model. In order to prevent this and to all reproducible, we report the steps\footnote{It is not relevant which image is to maintain in case of namesakes images during the transferring process: almost all of these photos are present in previous datasets}:
+\begin{enumerate}
+	\item download all the images throught \cite{mushroomobserver}.
+	
+	\item download \cite{keplab_mo106}, and combined it with the first one.
+	
+	\item do the same with \cite{kaggle_mushroom_species}.
+	
+	\item download \cite{kaggle_mushroom_classification_zedsden}. Some edibility classifications are wrong but we need only the images: move all the subfolders in the same directory, and rename the folders replacing "\_" with a blank space. It is possible to find the script we used in \textbf{github}. Keep in mind some species names are common American ones.
+	
+	\item download \cite{kaggle_mushroom_images_215} and after replacing "\_" with " ", combine it with the dataset of the previous step.
+	
+	\item now it is the turn of \cite{kaggle_mushrooms_specified}: combine it with the dataset created in the previous step.
+	
+	\item do the same with \cite{kaggle_edible_poisonous_mushrooms}.
+	
+	\item \cite{kaggle_mushroom_pictures} has entered the chat in the previous dataset.
+	
+	\item \cite{kaggle_mo_106} is to integrate with the dataset too.
+	
+	\item the same for \cite{kaggle_edible_non_edible_toxic_mushrooms}.
+	
+	\item now \cite{kaggle_mushrooms_classification_gaurav}.
+	
+	\item \cite{kaggle_multiinput_mushroom} is a bit tricky: there is the python code used to create the directories consistently with the others, paying attention to not overwrite the files with the same name (but in this case totally different photos, not repeated by other photos with other names). Then, we hard-moved to the dataset that will be merged with the one created in the step 2).
+	
+	\item now download and combine the genera datasets \cite{kaggle_mushroom_common_genus}, \cite{kaggle_mushroom_classification_lizhecheng}, \cite{kaggle_deepmushroom} and \cite{kaggle_mushroom_gcarbondioxide}.
+	
+	\item finally, download on a different folder all the datasets in \cite{danish_fungi_dataset}. We downloaded the 300px max side size due to space reasons.
+	
+	\item using the metadata file, reorganize the photos in such a way  
+\end{enumerate}
+
+\begin{comment}
 \section{Ease of Use}
 
 \subsection{Maintaining the Integrity of the Specifications}
@@ -112,7 +158,8 @@ Be sure that the
 symbols in your equation have been defined before or immediately following 
 the equation. Use ``\eqref{eq}'', not ``Eq.~\eqref{eq}'' or ``equation \eqref{eq}'', except at 
 the beginning of a sentence: ``Equation \eqref{eq} is . . .''
-
+\end{comment}
+\begin{comment}
 \subsection{\LaTeX-Specific Advice}
 
 Please use ``soft'' (e.g., \verb|\eqref{Eq}|) cross references instead
@@ -149,6 +196,7 @@ Do not use \verb|\nonumber| inside the \verb|{array}| environment. It
 will not stop equation numbers inside \verb|{array}| (there won't be
 any anyway) and it might stop a wanted equation number in the
 surrounding equation.
+
 
 \subsection{Some Common Mistakes}\label{SCM}
 \begin{itemize}
@@ -241,7 +289,8 @@ The preferred spelling of the word ``acknowledgment'' in America is without
 an ``e'' after the ``g''. Avoid the stilted expression ``one of us (R. B. 
 G.) thanks $\ldots$''. Instead, try ``R. B. G. thanks$\ldots$''. Put sponsor 
 acknowledgments in the unnumbered footnote on the first page.
-
+\end{comment}
+\begin{comment}
 \section*{References}
 
 Please number citations consecutively within brackets \cite{1-1955RSPTA}. The 
@@ -262,13 +311,15 @@ element symbols.
 
 For papers published in translation journals, please give the English 
 citation first, followed by the original foreign-language citation \cite{19-PMID:18002293}.
-
+\end{comment}
 \bibliographystyle{IEEEtran}
 % argument is your BibTeX string definitions and bibliography database(s)
 \bibliography{References}
-\bibitem{b1} report 2023 of corpo nazionale soccorso alpino e speleologico italiano, .
 \vspace{12pt}
 \color{red}
-IEEE conference templates contain guidance text for composing and formatting conference papers. Please ensure that all template text is removed from your conference paper prior to submission to the conference. Failure to remove the template text from your paper may result in your paper not being published.
+\begin{comment}
+	IEEE conference templates contain guidance text for composing and formatting conference papers. Please ensure that all template text is removed from your conference paper prior to submission to the conference. Failure to remove the template text from your paper may result in your paper not being published.
+\end{comment}
+
 
 \end{document}
