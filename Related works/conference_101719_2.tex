@@ -1,0 +1,337 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+% The preceding line is only needed to identify funding in the first footnote. If that is unneeded, please comment it out.
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{comment}
+\usepackage{xcolor}
+\usepackage[hidelinks]{hyperref}
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+    T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+\begin{document}
+
+\title{MushDex: A Pathway to Real-Time Detection and Classification of Mushrooms Using Raspberry Pi Zero 2W\\
+\thanks{Politecnico di Milano}
+}
+
+\author{\IEEEauthorblockN{Chiara D'Amato}
+	\IEEEauthorblockA{\textit{MSc in Engineering Physics} \\
+		\textit{Politecnico di Milano}\\
+		Vittuone, Italy\\
+		chiara.damato@mail.polimi.it}
+	\and
+	\IEEEauthorblockN{Edoardo Torre}
+	\IEEEauthorblockA{\textit{MSc in Engineering Physics} \\
+		\textit{Politecnico di Milano}\\
+		Merate, Italy\\
+		edoardo.torre@mail.polimi.it}
+	\and
+	\IEEEauthorblockN{Lorenzo Vergata}
+	\IEEEauthorblockA{\textit{MSc in Engineering Physics} \\
+		\textit{Politecnico di Milano}\\
+		Milan, Italy\\
+		lorenzo.vergata@mail.polimi.it}
+	
+}
+
+\maketitle
+
+\begin{abstract}
+This research aims to find a solution that helps hikers and encourages mushroom enthusiasts to take walks in the woods in order to improve their health. The main goal of the project is to provide smart experimental support for hikers, allowing them to focus solely on the risks of their journey while leaving the real-time detection and classification of mushrooms in the surrounding area to MushDex.\\
+Thanks to optimal illumination and camera rotation provided by powerful LED and MEMS systems and the access to the largest available mushroom image libraries, a neural network model is able to perform real-time inference to detect and classify the mushrooms present in the scene. The device alerts the user only when a mushroom species appears, allowing them to enjoy their walk without distractions.\\
+This work is to be understood as an investigation of the potential of a portable and inexpensive device in the field of mushroom object detection, and as such, it does not want to replace in any way the work of a mycologist. Thanks to the multi-output functionality and the vast amount of classes present in the problem addressed, the device can be a support for a further search for the genera and species of fungi, possibly with a DNA analysis.
+\end{abstract}
+
+\begin{IEEEkeywords}
+classification, dataset, detection, mushroom, raspberry.
+\end{IEEEkeywords}
+
+\section{Introduction}
+In the year 2023, the data provided by the Alpine and Speleological Rescue Activities show 12.365 people were rescued because of hiking-related problems; of these people, 7.622 were injured and 491 were found deceased\cite{CNSAS}. These numbers increase when adding the data from the Department of Health Activities, which recorded 10.000 Italians per year experiencing a range of medical cases from mild to more severe, with symptoms including gastrointestinal issues, neurological complications, and even death.\\
+Unfortunately, the events of COVID-19 have made people more comfortable staying at home, causing deterioration of the general mental well-being, especially for those living in large concrete cities. Taking a walk in the forest is highly beneficial for health and helps in reducing stress. The idea behind MushDex is to leverage people's interest in mushrooms and to stimulate them to take forest walks in a safer way. While we cannot directly solve the issues linked with the environmental dangers—that responsibility falls to the foresters of each country—we can help individuals focus more on their journey by allowing them to know where they could find mushrooms. In this way, they are more aware of their surroundings and concentrated on avoiding potential forest dangers. Using MushDex, a person can walk free of negative thoughts.\\
+In order to achieve our goal, we trained the state-of-the-art object detection network YOLOv10\cite{wang2024yolov10} on reliable custom datasets to generate boxes on a set of photos obtained by combining datasets. Due to the nature of this combined collection, we first needed to train different classification models to label the mushrooms of unknown species but known genera. This was essential to prevent data loss and to organise the photos into the right folders, named after the probable species. As if that were not enough, we used the same model to replace the "mushroom" label with the most confident prediction for each box in the dataset. By combining all the images, now containing boxes around mushrooms and labels with their species' names, we created the largest collection of mushroom pictures for the training of detection neural networks, with the largest number of classes for a problem of this kind.\\
+Since our challenge is to implement the trained detection model on a pocket-sized device, specifically the Raspberry Pi Zero 2W\cite{raspberrypi2021zero2wbrief}, a more lightweight model was trained on our dataset to enable a fast enough inference on this device. The system takes as input the real-time images from a detection camera, accompanied by an LED light illuminating the area when the ambient light is not sufficient. In this way, the hardware can be self-consistent with the environmental conditions. An inertial system communicates with the camera, applying the right transformation to analyse the frames in an ideal condition. Finally, the device communicates the genus and species of the identified mushrooms to the user through a speaker.\\
+After an overview of the related works regarding the problem, we present the guidelines for the creation of the dataset used in this study, explaining our approach when dealing with large-scale downloading of photos on the web. The problems of data scarcity, data quantity, and unbalanced data are also addressed.\\
+Next, we talk more in detail about the neural network models used, justifying the preferred choices for the different trainings.\\
+After that, we describe the image capture capability of our device, the sensor used for lighting the scene, and the audio output.\\
+Finally, the section dedicated to experimental results considers the measures to be implemented and problems to be solved, opening the doors for future ideas and work.
+
+\section{Related Works}
+The project takes inspiration from the "2018 FGCVx Fungi Classification Challenge," in which the main goal was to identify 1,394 fungi species given around 90,000 images for model training \cite{}. Instead of closely following the aim of the challenge, we are going to classify the genera of the mushrooms present in the picture input that is given by the user, basing the analysis on a dataset built starting from a variety of sources.\\
+There exist accessible datasets for projects about fungi, for example in \cite{kaggle_mushroom_datasets} and \cite{roboflow_mushroom_datasets}, and these are fundamental instruments for building robust models.\\
+Considering the 2019 work of J. Preechasuk et al. \cite{}, the aim was to classify 45 mushrooms given images of size 96 × 96 pixels, reaching an accuracy of 74\%. In our work, we scan larger pictures of 640 x 640 pixels to train the neural network. However, while we have higher resolution, our device performs a real-time inference instead of working on fixed images, so it is affected by motion noise.\\
+In the 2018 work of Kang et al. \cite{}, a small dataset of 1,478 images was used to classify 38 species of mushrooms, reaching an accuracy of 82\%. On the other hand, we use a bigger dataset, looking to obtain an accuracy score close to the one above.\\
+The 2019 study by M. A. Ottom et al. \cite{} also accounted for the real-world sizes of mushrooms, achieving a peak accuracy of 94\%. When relying only on visual features extracted from images, the accuracy dropped to 86\%. While this suggests that our real-time detection may not surpass these results, a future implementation could be considered: users might be able to connect their Raspberry Pi to a personal computer and input additional information, such as precise measurements of a mushroom flagged as potentially interesting by MushDex, to obtain a more accurate classification.\\
+\cite{bouganssa2024recognition} is a similar study, although the classes it considers are entirely different, and its dataset contains fewer images than the number of classes we are using in our project. Nevertheless, it serves as an example of real-time mushroom detection on an embedded system, specifically our test device: if something cannot run on a Raspberry Pi 400, it is also unable to run on a Raspberry Pi Zero 2W.\\
+\cite{shafik2024transfer} concerns a different kingdom but provides a solid example of object detection and classification similar to what we are aiming for.\\
+Speaking of available applications for the identification of mushrooms, most of them are not open source and fall short in both the number of species covered and the level of accuracy required for real-time inference.\\
+An example of a paid mushroom identification app is Picture Mushroom, which uses multi-input photos to produce an output. Unfortunately, some edibility labels are incorrect, and because this classification is different across the nationalities, we have no interest in it, limiting ourselves only to the species recognition\cite{book}.\\
+Mushroomizer is a good real-time app for Android only, but it is not open source, and detection carried out using a smartphone while walking can be risky.\\
+Shroomify is an encyclopaedia of mushrooms and not an unsupervised detection app.\\
+Riconoscere Funghi-Identific is a valid free application, but it performs poorly during real-time scanning, as it primarily focuses on photo-based classification rather than live detection.\\
+ShroomID is a solid classification app, and notably, FungID is also open source. However, both require the user to manually detect mushrooms, get close for a photo, and sometimes even pick the mushroom, which can disturb nature and expose the user to potential mycotoxin poisoning. Moreover, the user is distracted from the journey in the forest because their attention is redirected to mushroom detection, increasing the risks connected to hiking.\\
+To conclude, our dataset is possibly the hardest benchmark for the fungi kingdom available, and the methods and the scale of the problem are truly unique. This underscores the difficulty of detecting and classifying all known mushroom species using only photos; biological analysis is required to reach a confidence level close to 100\%. Currently, the most accurate technique for mushroom recognition is DNA analysis from a small sample, but this process requires a specialised machine, which is typically bulky. In contrast, we are going to use a lightweight, portable smart device for the recognition task.
+
+\section{Methodologies}
+
+\subsection{Hardware approach}
+In order to solve our problem, we identify the needed devices to connect to the Raspberry Pi Zero 2W. This is a device based on a 1 GHz Quad-core 64-bit Arm Cortex-A53 CPU, with 512 MB of SDRAM necessary for the real-time inference and a Bluetooth antenna required for the connection with the external speaker. The power supply is provided by a user's power bank equipped with a proper connector.\\
+To carry out the real-time image detection, we used the Raspberry Pi Camera Module 3, provided by Raspberry Pi Ltd. and based on Sony technology. The camera has as its main features for our purpose a focus range from 10 cm to "enough", a 12 Megapixel sensor, and a field of view of 70 degrees, allowing us to scan the surrounding area. It is noted the sensitivity needed for our goal is much lower.\\
+In order to lighten the area in case of low environmental illumination detected by a photodetector, we use an external LED light connected to our device. Because we could not obtain a sufficiently powerful light from already available devices, we used a store-bought LED; we dismantled it and welded it to our device. The photodetector was already available to buy online.\\
+We exploited the Bluetooth feature to connect a recovered external speaker, which allowed the device to spell the detected mushroom's name.
+
+\subsection{Dataset creation}
+%TODO
+A bad dataset is directly associated to a bad neural network model. In order to prevent this and to all reproducible, we report the steps\footnote{It is not relevant which image is to maintain in case of namesakes images during the transferring process: almost all of these photos are present in previous datasets}:
+\begin{enumerate}
+	\item download all the images through \cite{mushroomobserver}.
+	
+	\item download \cite{keplab_mo106}, and combined it with the first one.
+	
+	\item do the same with \cite{kaggle_mushroom_species}.
+	
+	\item download \cite{kaggle_mushroom_classification_zedsden}. Some edibility classifications are wrong but we need only the images: move all the subfolders in the same directory, and rename the folders replacing "\_" with a blank space. It is possible to find the script we used in \textbf{github}. Keep in mind some species names are common American ones.
+	
+	\item download \cite{kaggle_mushroom_images_215} and after replacing "\_" with " ", combine it with the dataset of the previous step.
+	
+	\item now it is the turn of \cite{kaggle_mushrooms_specified}: combine it with the dataset created in the previous step.
+	
+	\item do the same with \cite{kaggle_edible_poisonous_mushrooms}.
+	
+	\item \cite{kaggle_mushroom_pictures} has entered the chat in the previous dataset.
+	
+	\item \cite{kaggle_mo_106} is to integrate with the dataset too.
+	
+	\item the same for \cite{kaggle_edible_non_edible_toxic_mushrooms}.
+	
+	\item now \cite{kaggle_mushrooms_classification_gaurav}.
+	
+	\item \cite{kaggle_multiinput_mushroom} is a bit tricky: there is the python code used to create the directories consistently with the others, paying attention to not overwrite the files with the same name (but in this case totally different photos, not repeated by other photos with other names). Then, we hard-moved to the dataset that will be merged with the one created in the step 2).
+	
+	\item now download and combine the genera datasets \cite{kaggle_mushroom_common_genus}, \cite{kaggle_mushroom_classification_lizhecheng}, \cite{kaggle_deepmushroom} and \cite{kaggle_mushroom_gcarbondioxide}.
+	
+	\item finally, download on a different folder all the datasets in \cite{danish_fungi_dataset}. We downloaded the 300px max side size due to space reasons.
+	
+	\item using the metadata file, reorganize the photos in such a way  
+\end{enumerate}
+
+\begin{comment}
+\section{Ease of Use}
+
+\subsection{Maintaining the Integrity of the Specifications}
+
+The IEEEtran class file is used to format your paper and style the text. All margins, 
+column widths, line spaces, and text fonts are prescribed; please do not 
+alter them. You may note peculiarities. For example, the head margin
+measures proportionately more than is customary. This measurement 
+and others are deliberate, using specifications that anticipate your paper 
+as one part of the entire proceedings, and not as an independent document. 
+Please do not revise any of the current designations.
+
+\section{Prepare Your Paper Before Styling}
+Before you begin to format your paper, first write and save the content as a 
+separate text file. Complete all content and organizational editing before 
+formatting. Please note sections \ref{AA}--\ref{SCM} below for more information on 
+proofreading, spelling and grammar.
+
+Keep your text and graphic files separate until after the text has been 
+formatted and styled. Do not number text heads---{\LaTeX} will do that 
+for you.
+
+\subsection{Abbreviations and Acronyms}\label{AA}
+Define abbreviations and acronyms the first time they are used in the text, 
+even after they have been defined in the abstract. Abbreviations such as 
+IEEE, SI, MKS, CGS, ac, dc, and rms do not have to be defined. Do not use 
+abbreviations in the title or heads unless they are unavoidable.
+
+\subsection{Units}
+\begin{itemize}
+\item Use either SI (MKS) or CGS as primary units. (SI units are encouraged.) English units may be used as secondary units (in parentheses). An exception would be the use of English units as identifiers in trade, such as ``3.5-inch disk drive''.
+\item Avoid combining SI and CGS units, such as current in amperes and magnetic field in oersteds. This often leads to confusion because equations do not balance dimensionally. If you must use mixed units, clearly state the units for each quantity that you use in an equation.
+\item Do not mix complete spellings and abbreviations of units: ``Wb/m\textsuperscript{2}'' or ``webers per square meter'', not ``webers/m\textsuperscript{2}''. Spell out units when they appear in text: ``. . . a few henries'', not ``. . . a few H''.
+\item Use a zero before decimal points: ``0.25'', not ``.25''. Use ``cm\textsuperscript{3}'', not ``cc''.)
+\end{itemize}
+
+\subsection{Equations}
+Number equations consecutively. To make your 
+equations more compact, you may use the solidus (~/~), the exp function, or 
+appropriate exponents. Italicize Roman symbols for quantities and variables, 
+but not Greek symbols. Use a long dash rather than a hyphen for a minus 
+sign. Punctuate equations with commas or periods when they are part of a 
+sentence, as in:
+\begin{equation}
+a+b=\gamma\label{eq}
+\end{equation}
+
+Be sure that the 
+symbols in your equation have been defined before or immediately following 
+the equation. Use ``\eqref{eq}'', not ``Eq.~\eqref{eq}'' or ``equation \eqref{eq}'', except at 
+the beginning of a sentence: ``Equation \eqref{eq} is . . .''
+\end{comment}
+\begin{comment}
+\subsection{\LaTeX-Specific Advice}
+
+Please use ``soft'' (e.g., \verb|\eqref{Eq}|) cross references instead
+of ``hard'' references (e.g., \verb|(1)|). That will make it possible
+to combine sections, add equations, or change the order of figures or
+citations without having to go through the file line by line.
+
+Please don't use the \verb|{eqnarray}| equation environment. Use
+\verb|{align}| or \verb|{IEEEeqnarray}| instead. The \verb|{eqnarray}|
+environment leaves unsightly spaces around relation symbols.
+
+Please note that the \verb|{subequations}| environment in {\LaTeX}
+will increment the main equation counter even when there are no
+equation numbers displayed. If you forget that, you might write an
+article in which the equation numbers skip from (17) to (20), causing
+the copy editors to wonder if you've discovered a new method of
+counting.
+
+{\BibTeX} does not work by magic. It doesn't get the bibliographic
+data from thin air but from .bib files. If you use {\BibTeX} to produce a
+bibliography you must send the .bib files. 
+
+{\LaTeX} can't read your mind. If you assign the same label to a
+subsubsection and a table, you might find that Table I has been cross
+referenced as Table IV-B3. 
+
+{\LaTeX} does not have precognitive abilities. If you put a
+\verb|\label| command before the command that updates the counter it's
+supposed to be using, the label will pick up the last counter to be
+cross referenced instead. In particular, a \verb|\label| command
+should not go before the caption of a figure or a table.
+
+Do not use \verb|\nonumber| inside the \verb|{array}| environment. It
+will not stop equation numbers inside \verb|{array}| (there won't be
+any anyway) and it might stop a wanted equation number in the
+surrounding equation.
+
+
+\subsection{Some Common Mistakes}\label{SCM}
+\begin{itemize}
+\item The word ``data'' is plural, not singular.
+\item The subscript for the permeability of vacuum $\mu_{0}$, and other common scientific constants, is zero with subscript formatting, not a lowercase letter ``o''.
+\item In American English, commas, semicolons, periods, question and exclamation marks are located within quotation marks only when a complete thought or name is cited, such as a title or full quotation. When quotation marks are used, instead of a bold or italic typeface, to highlight a word or phrase, punctuation should appear outside of the quotation marks. A parenthetical phrase or statement at the end of a sentence is punctuated outside of the closing parenthesis (like this). (A parenthetical sentence is punctuated within the parentheses.)
+\item A graph within a graph is an ``inset'', not an ``insert''. The word alternatively is preferred to the word ``alternately'' (unless you really mean something that alternates).
+\item Do not use the word ``essentially'' to mean ``approximately'' or ``effectively''.
+\item In your paper title, if the words ``that uses'' can accurately replace the word ``using'', capitalize the ``u''; if not, keep using lower-cased.
+\item Be aware of the different meanings of the homophones ``affect'' and ``effect'', ``complement'' and ``compliment'', ``discreet'' and ``discrete'', ``principal'' and ``principle''.
+\item Do not confuse ``imply'' and ``infer''.
+\item The prefix ``non'' is not a word; it should be joined to the word it modifies, usually without a hyphen.
+\item There is no period after the ``et'' in the Latin abbreviation ``et al.''.
+\item The abbreviation ``i.e.'' means ``that is'', and the abbreviation ``e.g.'' means ``for example''.
+\end{itemize}
+An excellent style manual for science writers is \cite{b7}.
+
+\subsection{Authors and Affiliations}
+\textbf{The class file is designed for, but not limited to, six authors.} A 
+minimum of one author is required for all conference articles. Author names 
+should be listed starting from left to right and then moving down to the 
+next line. This is the author sequence that will be used in future citations 
+and by indexing services. Names should not be listed in columns nor group by 
+affiliation. Please keep your affiliations as succinct as possible (for 
+example, do not differentiate among departments of the same organization).
+
+\subsection{Identify the Headings}
+Headings, or heads, are organizational devices that guide the reader through 
+your paper. There are two types: component heads and text heads.
+
+Component heads identify the different components of your paper and are not 
+topically subordinate to each other. Examples include Acknowledgments and 
+References and, for these, the correct style to use is ``Heading 5''. Use 
+``figure caption'' for your Figure captions, and ``table head'' for your 
+table title. Run-in heads, such as ``Abstract'', will require you to apply a 
+style (in this case, italic) in addition to the style provided by the drop 
+down menu to differentiate the head from the text.
+
+Text heads organize the topics on a relational, hierarchical basis. For 
+example, the paper title is the primary text head because all subsequent 
+material relates and elaborates on this one topic. If there are two or more 
+sub-topics, the next level head (uppercase Roman numerals) should be used 
+and, conversely, if there are not at least two sub-topics, then no subheads 
+should be introduced.
+
+\subsection{Figures and Tables}
+\paragraph{Positioning Figures and Tables} Place figures and tables at the top and 
+bottom of columns. Avoid placing them in the middle of columns. Large 
+figures and tables may span across both columns. Figure captions should be 
+below the figures; table heads should appear above the tables. Insert 
+figures and tables after they are cited in the text. Use the abbreviation 
+``Fig.~\ref{fig}'', even at the beginning of a sentence.
+
+\begin{table}[htbp]
+\caption{Table Type Styles}
+\begin{center}
+\begin{tabular}{|c|c|c|c|}
+\hline
+\textbf{Table}&\multicolumn{3}{|c|}{\textbf{Table Column Head}} \\
+\cline{2-4} 
+\textbf{Head} & \textbf{\textit{Table column subhead}}& \textbf{\textit{Subhead}}& \textbf{\textit{Subhead}} \\
+\hline
+copy& More table copy$^{\mathrm{a}}$& &  \\
+\hline
+\multicolumn{4}{l}{$^{\mathrm{a}}$Sample of a Table footnote.}
+\end{tabular}
+\label{tab1}
+\end{center}
+\end{table}
+
+\begin{figure}[htbp]
+\centerline{\includegraphics{fig1.png}}
+\caption{Example of a figure caption.}
+\label{fig}
+\end{figure}
+
+Figure Labels: Use 8 point Times New Roman for Figure labels. Use words 
+rather than symbols or abbreviations when writing Figure axis labels to 
+avoid confusing the reader. As an example, write the quantity 
+``Magnetization'', or ``Magnetization, M'', not just ``M''. If including 
+units in the label, present them within parentheses. Do not label axes only 
+with units. In the example, write ``Magnetization (A/m)'' or ``Magnetization 
+\{A[m(1)]\}'', not just ``A/m''. Do not label axes with a ratio of 
+quantities and units. For example, write ``Temperature (K)'', not 
+``Temperature/K''.
+
+\section*{Acknowledgment}
+
+The preferred spelling of the word ``acknowledgment'' in America is without 
+an ``e'' after the ``g''. Avoid the stilted expression ``one of us (R. B. 
+G.) thanks $\ldots$''. Instead, try ``R. B. G. thanks$\ldots$''. Put sponsor 
+acknowledgments in the unnumbered footnote on the first page.
+\end{comment}
+\begin{comment}
+\section*{References}
+
+Please number citations consecutively within brackets \cite{1-1955RSPTA}. The 
+sentence punctuation follows the bracket \cite{10-Hawranik1991-bc}. Refer simply to the reference 
+number, as in \cite{10-Hawranik1991-bc}---do not use ``Ref. \cite{10-Hawranik1991-bc}'' or ``reference \cite{10-Hawranik1991-bc}'' except at 
+    the beginning of a sentence: ``Reference \cite{10-Hawranik1991-bc} was the first $\ldots$''
+
+Number footnotes separately in superscripts. Place the actual footnote at 
+the bottom of the column in which it was cited. Do not put footnotes in the 
+abstract or reference list. Use letters for table footnotes.
+
+Unless there are six authors or more give all authors' names; do not use 
+``et al.''. Papers that have not been published, even if they have been 
+submitted for publication, should be cited as ``unpublished'' \cite{14-7156010}. Papers 
+that have been accepted for publication should be cited as ``in press'' \cite{17-Wild266}. 
+Capitalize only the first word in a paper title, except for proper nouns and 
+element symbols.
+
+For papers published in translation journals, please give the English 
+citation first, followed by the original foreign-language citation \cite{19-PMID:18002293}.
+\end{comment}
+\bibliographystyle{IEEEtran}
+% argument is your BibTeX string definitions and bibliography database(s)
+\bibliography{References}
+\vspace{12pt}
+\color{red}
+\begin{comment}
+	IEEE conference templates contain guidance text for composing and formatting conference papers. Please ensure that all template text is removed from your conference paper prior to submission to the conference. Failure to remove the template text from your paper may result in your paper not being published.
+\end{comment}
+
+
+\end{document}
