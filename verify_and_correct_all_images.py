@@ -1,200 +1,154 @@
 import os
 import pandas as pd
-from PIL import Image
-from pathlib import Path
+import requests
 import shutil
-import logging
+from PIL import Image, UnidentifiedImageError
+from tqdm import tqdm
 
-# Configure logging
-logging.basicConfig(
-    filename='verification_errors.log',
-    level=logging.ERROR,
-    format='%(asctime)s:%(levelname)s:%(message)s'
-)
+# Dati caricati dai file CSV
+images_obs_df = pd.read_csv("images_observations.csv", delimiter='\t')
+observations_df = pd.read_csv("observations.csv", delimiter='\t')
+names_df = pd.read_csv("names.csv", delimiter='\t')
 
+# Correzioni manuali per alcuni synonym_id
+manual_corrections = {
+    '10207': "Panaeolus subbalteatus", '609': "Conocybe rugosa", '696': "Biatora pallens",
+    '9564': "Hemimycena albicolor", '9192': "Fulgidea sierrae", '7805': "Limacella guttata",
+    '7668': "Lactarius pterosporus", '7803': "Athelia salicum", '8840': "Gliophorus viscaurantius",
+    '7678': "Lactarius fennoscandicus", '5062': "Morchella conica", '7506': "Orbilia delicatula",
+    '7932': "Hohenbuehelia podocarpinea", '9990': "Morchella costata", '5588': "Psathyrellaceae",
+    '7923': "Hourangia pumila", '5101': "Piptoporus australiensis", '4851': "Isaria surinamensis",
+    '8841': "Gliophorus sulfureus", '3378': "Russula emetica group", '7829': "Hypochnicium sphaerosporum",
+    '9576': "Inocybe flavella", '7369': "Lacrymaria pyrotricha", '9696': "Styrofomes riparius",
+    '5710': "Mycolindtneria trachyspora", '7493': "Pholiota jahnii", '8549': "Arthopyrenia epidermidis",
+    '8808': "Nectria fuckeliana", '2771': "Geastrum arenarium", '7761': "Kretzschmariella culmorum",
+    '5370': "Suillus", '9577': "Mallocybe heimii", '7405': "Typhula uncialis", '705': "Xanthoconium affine"
+}
 
-def sanitize_folder_name(name):
-    """
-    Replace or remove characters that are invalid in Windows folder names.
-    """
-    invalid_chars = {
-        '<': '',
-        '>': '',
-        ':': '',
-        '"': '',
-        '/': '',
-        '\\': '',
-        '|': '',
-        '?': '',
-        '*': ''
-    }
-    for char, replacement in invalid_chars.items():
-        name = name.replace(char, replacement)
-    return name.strip()
+extensions = ['.jpg', '.jpeg', '.png', 'raw', 'tiff', 'heif', 'dng', 'bmp', 'gif', 'psd']
+log_errors = []
 
+def sanitize_folder_name(text):
+    return text.translate(str.maketrans({"<": "", ">": "", ":": "", "\"": "", "\\": "", "|": "", "?": "", "*": ""}))
 
 def determine_folder(text_name):
-    """
-    Determine the appropriate folder path for the image based on the text_name.
-    """
-    if (text_name.lower().endswith('series') or
-            text_name.lower().endswith('group') or
-            'sect.' in text_name or
-            len(text_name.split()) == 1):
-        folder_type = 'Unknown species'
-        folder_name = 'Unknown species'
+    if (text_name.lower().endswith('series') or text_name.lower().endswith('group') or 
+        'sect.' in text_name or len(text_name.split()) == 1):
+        folder_name = os.path.join('Unknown species', text_name)
     else:
-        folder_type = 'Known species'
         parts = text_name.split()
-        if len(parts) >= 2:
-            first_two = ' '.join(parts[:2])
-        else:
-            first_two = text_name
-        if not any(x in text_name for x in ['var.', 'f.', 'subsp.']):
-            folder_full_name = f"{text_name} species"
-        else:
-            folder_full_name = text_name
-        folder_name = sanitize_folder_name(folder_full_name)
-        first_two = sanitize_folder_name(first_two)
-        folder_name = os.path.join(folder_type, first_two, folder_name)
+        first_two = ' '.join(parts[:2]) if len(parts) >= 2 else text_name
+        folder_full_name = f"{text_name} species" if not any(x in text_name for x in ['var.', 'f.', 'subsp.']) else text_name
+        folder_name = os.path.join('Known species', sanitize_folder_name(first_two), sanitize_folder_name(folder_full_name))
     return folder_name
 
+def find_image_locally(image_id):
+    for root, _, files in os.walk("MO/"):
+        for file in files:
+            if any(file == f"{image_id}{ext}" for ext in extensions):
+                current_path = os.path.join(root, file)
+                return current_path
+    return None
 
-def replace_unix_characters(name):
-    """
-    Replace Unix-specific characters with Windows-compatible ones.
-    """
-    return sanitize_folder_name(name)
-
-
-def resize_image_if_needed(file_path):
-    """
-    Resize the image so that the smaller dimension is exactly 960 pixels,
-    adjusting the larger dimension to maintain the aspect ratio.
-    """
+def check_image_integrity(image_path):
     try:
-        with Image.open(file_path) as img:
+        with Image.open(image_path) as img:
+            img.verify()  # Verifica integrità dell'immagine
+        return True
+    except (UnidentifiedImageError, IOError):
+        os.remove(image_path)  # Elimina immagine corrotta
+        print(f"Corrupted image {image_path} removed.")
+        return False
+
+def resize_image(image_path):
+    try:
+        with Image.open(image_path) as img:
+            img = img.convert("RGB")  # Convertiamo in RGB per evitare formati incompatibili
             width, height = img.size
-            min_dim = min(width, height)
-            if min_dim > 960:
-                scale_factor = 960 / min_dim
-                new_width = int(width * scale_factor)
-                new_height = int(height * scale_factor)
-                img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
-                img.save(file_path, format=img.format)
-                print(f"Resized {file_path.name} to: {new_width}x{new_height}")
-                return True
-        return False
+            min_side = min(width, height)
+            if min_side > 720:
+                scaling_factor = 720 / min_side
+                new_size = (int(width * scaling_factor), int(height * scaling_factor))
+                img = img.resize(new_size, Image.LANCZOS)
+                img.save(image_path)
     except Exception as e:
-        logging.error(f"Error resizing image {file_path.name}: {e}")
-        return False
+        log_errors.append(f"Error resizing {image_path}: {e}")
 
-
-def verify_image_path_and_resize(image_id, csv_mappings, images_dir):
-    """
-    Verify the correct folder for an image and resize it if needed.
-    """
-    # Retrieve the necessary mappings from the CSV
-    observation_id = csv_mappings['image_to_observation'].get(str(image_id))
-    if not observation_id:
-        logging.error(f"Observation ID not found for image ID {image_id}")
-        return False
-
-    name_id = csv_mappings['observation_to_name'].get(str(observation_id))
-    if not name_id:
-        logging.error(f"Name ID not found for observation ID {observation_id}")
-        return False
-
-    synonym_id = csv_mappings['name_to_synonym'].get(str(name_id))
-    if pd.isna(synonym_id) or str(synonym_id).upper() == 'NULL' or str(synonym_id).strip() == '':
-        text_name = csv_mappings['name_to_text_name'].get(str(name_id))
-    else:
-        synonym_texts = csv_mappings['synonym_to_texts'].get(str(synonym_id), [])
-        if not synonym_texts:
-            logging.error(f"No text names found for synonym ID {synonym_id}")
-            return False
-        text_name = min(synonym_texts, key=len)
-
-    # Determine the correct folder
-    correct_folder = Path(images_dir) / determine_folder(text_name)
-
-    # Check if the image is already in the correct folder
-    found = False
-    for ext in ['.jpg', '.jpeg', '.png']:
-        file_path = correct_folder / f"{image_id}{ext}"
-        if file_path.exists():
-            found = True
-            resize_image_if_needed(file_path)
-            break
-
-    # If not found, search the image in the wrong folder and move it
-    if not found:
-        print(f"Image {image_id} not found in correct folder, searching...")
-        for root, _, files in os.walk(images_dir):
-            for file in files:
-                if file.startswith(str(image_id)):
-                    old_path = Path(root) / file
-                    new_path = correct_folder / file
-                    correct_folder.mkdir(parents=True, exist_ok=True)
-                    shutil.move(str(old_path), str(new_path))
-                    print(f"Moved {old_path} to {new_path}")
-                    resize_image_if_needed(new_path)
-                    return True
+def check_and_download_image(image_id, target_path):
+    for ext in extensions:
+        url = f"https://storage.googleapis.com/mo-image-archive-bucket/orig/{image_id}{ext}"
+        try:
+            response = requests.get(url)
+            if response.status_code == 200:
+                with open(target_path, 'wb') as f:
+                    f.write(response.content)
+                return True
+        except Exception as e:
+            print(f"Error downloading {image_id}{ext}: {e}")
     return False
 
+def process_images():
+    for idx, row in tqdm(images_obs_df.iterrows(), total=images_obs_df.shape[0], desc="Processing images"):
+        image_id = row['image_id']
+        observation_id = row['observation_id']
+        observation_row = observations_df[observations_df['id'] == observation_id]
+        
+        if observation_row.empty:
+            print(f"Image ID {image_id} has no corresponding observation. Deleting...")
+            os.remove(f"MO/{image_id}")
+            continue
 
-def load_csv_mappings(csv_dir):
-    """
-    Load all necessary mappings from the CSV files.
-    """
-    try:
-        # Load CSVs
-        names_df = pd.read_csv(Path(csv_dir) / "names.csv", sep='\t', dtype=str)
-        observations_df = pd.read_csv(Path(csv_dir) / "observations.csv", sep='\t', dtype=str)
-        images_observations_df = pd.read_csv(Path(csv_dir) / "images_observations.csv", sep='\t', dtype=str)
+        name_id = observation_row.iloc[0]['name_id']
+        name_row = names_df[names_df['id'] == name_id]
+        
+        if name_row.empty:
+            continue
+        
+        synonym_id = name_row.iloc[0]['synonym_id']
+        correct_spelling_id = name_row.iloc[0]['correct_spelling_id']
+        
+        text_name = None
+        if pd.notna(synonym_id) and synonym_id in manual_corrections:
+            text_name = manual_corrections[synonym_id]
+        elif pd.notna(synonym_id) and synonym_id.isnumeric():
+            candidates = names_df[(names_df['synonym_id'] == int(synonym_id)) & (names_df['deprecated'] == 0)]
+            if not candidates.empty:
+                text_name = min(candidates['text_name'], key=len)
+            else:
+                log_errors.append(f"All names with synonym_id {synonym_id} are deprecated for image ID {image_id}")
+        elif pd.notna(correct_spelling_id) and correct_spelling_id.isnumeric():
+            synonym_candidates = names_df[(names_df['id'] == int(correct_spelling_id))]
+            synonym_id = synonym_candidates.iloc[0]['synonym_id'] if not synonym_candidates.empty else None
+            candidates = names_df[(names_df['synonym_id'] == synonym_id) & (names_df['deprecated'] == 0)]
+            text_name = min(candidates['text_name'], key=len) if not candidates.empty else name_row.iloc[0]['text_name']
+        else:
+            text_name = name_row.iloc[0]['text_name']
+        
+        folder_name = determine_folder(sanitize_folder_name(text_name))
+        target_path = os.path.join("MO", folder_name, f"{image_id}.jpg")
 
-        # Create mappings
-        image_to_observation = images_observations_df.set_index('image_id')['observation_id'].to_dict()
-        observation_to_name = observations_df.set_index('id')['name_id'].to_dict()
-        name_to_synonym = names_df.set_index('id')['synonym_id'].to_dict()
-        name_to_text_name = names_df.set_index('id')['text_name'].to_dict()
-        synonym_to_texts = names_df[names_df['deprecated'] == '0'].dropna(subset=['synonym_id']).groupby('synonym_id')[
-            'text_name'].apply(list).to_dict()
+        local_path = find_image_locally(image_id)
+        if local_path:
+            print(f"Image {image_id} found at {local_path}. Moving to {target_path}")
+            os.makedirs(os.path.dirname(target_path), exist_ok=True)
+            if check_image_integrity(local_path):
+                shutil.move(local_path, target_path)
+                resize_image(target_path)
+            else:
+                print(f"Image {local_path} is corrupted. Skipping...")
+        else:
+            print(f"Image {image_id} not found locally. Attempting download...")
+            if check_and_download_image(image_id, target_path):
+                resize_image(target_path)
+            else:
+                print(f"Failed to download image {image_id}")
 
-        # Return all mappings as a dictionary
-        return {
-            'image_to_observation': image_to_observation,
-            'observation_to_name': observation_to_name,
-            'name_to_synonym': name_to_synonym,
-            'name_to_text_name': name_to_text_name,
-            'synonym_to_texts': synonym_to_texts,
-        }
-    except Exception as e:
-        logging.error(f"Error loading CSV files or creating mappings: {e}")
-        return None
+# Esegui il processo
+process_images()
 
+# Log degli errori
+with open("error_log.txt", "w") as log_file:
+    for error in log_errors:
+        log_file.write(error + "\n")
 
-def verify_and_correct_all_images(csv_dir, images_dir):
-    """
-    Verify and correct the location and size of all images in the 'MO' folder.
-    """
-    csv_mappings = load_csv_mappings(csv_dir)
-    if csv_mappings is None:
-        print("Failed to load CSV mappings. Check the logs for errors.")
-        return
-
-    # Iterate over each image in the 'MO' folder
-    for root, _, files in os.walk(images_dir):
-        for file in files:
-            if file.endswith(('.jpg', '.jpeg', '.png')):
-                image_id = file.split('.')[0]  # Get the image ID from the file name
-                verify_image_path_and_resize(image_id, csv_mappings, images_dir)
-
-
-if __name__ == "__main__":
-    # Set the paths to the CSV files directory and the images directory
-    csv_dir = "CSV"  # Update this if your CSV files are stored elsewhere
-    images_dir = "MO"  # Update this if your images are stored elsewhere
-
-    # Verify and correct the images
-    verify_and_correct_all_images(csv_dir, images_dir)
+print("Processing complete. Check error_log.txt for issues.")
