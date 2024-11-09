@@ -37,6 +37,5 @@ def tell_description(name_id=sys.argv[1]):
     
     # Unisci i testi e puliscili
     testo_finale = pulisci_testo(' '.join(testo_concatenato))
-    print(testo_finale[3:])
     return testo_finale[3:]
 tell_description()
