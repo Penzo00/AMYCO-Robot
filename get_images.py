@@ -162,8 +162,9 @@ for i in tqdm(range(start_index, len(images_observations_df)), desc="Downloading
         text_name = text_name_pd.sort_values(by=['text_name'], key=lambda x: x.str.len()).iloc[0]['text_name']
     text_name = re.sub(r'[<>:"\|?*]', " ", text_name)
 
-    if text_name.endswith("series") or text_name.endswith("group") or any(x in text_name for x in ["sect.", "subg."]) or len(text_name.split()) == 1:
-        folder_path = os.path.join(unknown_folder, text_name)
+    if text_name.endswith("series") or text_name.endswith("group") or any(x in text_name for x in ["sect.", "subg.", "Mixed"]) or len(text_name.split()) == 1:
+        #folder_path = os.path.join(unknown_folder, text_name)
+        continue
     else:
         species_base = " ".join(text_name.split()[:2])
         species_folder = os.path.join(known_folder, species_base)
