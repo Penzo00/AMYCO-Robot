@@ -31,7 +31,7 @@ AMYCO is a project dedicated to building neural network-based tools for detectin
 
 ## Overview
 
-AMYCO leverages YOLO and FasterViT architectures to process images of mushrooms for detection and classification tasks. The pipeline includes tools for downloading datasets, preprocessing images, augmenting data, and training models. This README provides a detailed description of each file and instructions for setting up and running the system.
+AMYCO leverages YOLO and FasterViT architectures to process images of mushrooms for detection and classification tasks. The pipeline includes tools for downloading datasets, preprocessing images, augmenting data, and training models. This README provides a little description of each file and instructions for setting up and running the system.
 
 ---
 
