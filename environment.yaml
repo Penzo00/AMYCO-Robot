@@ -14,6 +14,7 @@ dependencies:
   - onnxruntime
   - pytorch
   - torchvision
+  - tensorflow
   - opencv
   - pillow
   - requests
