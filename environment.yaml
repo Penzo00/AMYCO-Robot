@@ -1,0 +1,24 @@
+name: amyco
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - python=3.10
+  - ultralytics
+  - numpy
+  - pandas
+  - scipy
+  - matplotlib
+  - scikit-learn
+  - tqdm
+  - onnxruntime
+  - pytorch
+  - torchvision
+  - opencv
+  - pillow
+  - requests
+  - pip
+  - pip:
+    - git+https://github.com/rhasspy/piper-phonemize.git
+    - piper-tts
+    - sounddevice
