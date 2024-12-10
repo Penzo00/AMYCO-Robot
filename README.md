@@ -1,4 +1,4 @@
-# AMYCO: Neural Networks for Mushroom Detection and Classification
+# A-MYCO: Prototyping the Eyes of a Myco-Robot
 
 AMYCO is a project dedicated to building neural network-based tools for detecting and classifying mushrooms. The project includes a suite of Python scripts and shell utilities to preprocess data, train models, and deploy the system on a Raspberry Pi.
 
