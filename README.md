@@ -85,8 +85,8 @@ Converts all YOLO class labels in the dataset to a single class (mushroom).
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/amyco.git
-   cd amyco
+   git clone https://github.com/Penzo00/AMYCO-Robot.git
+   cd AMYCO-Robot
    ```
 
 2. Install Miniconda (if not already installed):
