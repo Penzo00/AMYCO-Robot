@@ -8,6 +8,7 @@ AMYCO is a project dedicated to building neural network-based tools for detectin
 
 1. [Overview](#overview)
 2. [File Descriptions](#file-descriptions)
+    - [args.yaml](#argsyaml)
     - [converter.py](#converterpy)
     - [cropper.py](#cropperpy)
     - [csv_downloader.sh](#csv_downloadersh)
@@ -22,10 +23,10 @@ AMYCO is a project dedicated to building neural network-based tools for detectin
     - [splitter.py](#splitterpy)
     - [table.py](#tablepy)
     - [update_label_file.py](#update_label_filepy)
-3. [Installation and Setup](#installation-and-setup)
-4. [Steps to Set Up Automatic Environment on Raspberry Pi](#steps-to-set-up-automatic-environment-on-raspberry-pi)
-5. [Contributors](#contributors)
-6. [License](#license)
+4. [Installation and Setup](#installation-and-setup)
+5. [Steps to Set Up Automatic Environment on Raspberry Pi](#steps-to-set-up-automatic-environment-on-raspberry-pi)
+6. [Contributors](#contributors)
+7. [License](#license)
 
 ---
 
