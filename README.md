@@ -37,6 +37,9 @@ AMYCO leverages YOLO and FasterViT architectures to process images of mushrooms 
 
 ## File Descriptions
 
+### args.yaml
+YOLO11 training settings.
+
 ### converter.py
 Converts segmentation data to bounding box format for use in detection models.
 
