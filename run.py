@@ -21,10 +21,6 @@ def play_audio(voice, text, stream):
     for audio_bytes in voice.synthesize_stream_raw(text):
         stream.write(np.frombuffer(audio_bytes, dtype=np.int16))
 
-# Load models
-model = YOLO("best_ncnn_model", task="detect")
-ort_session = ort.InferenceSession("amyco.onnx")
-
 # Load voices
 roman_voice = PiperVoice.load("it_IT-paola-medium.onnx")
 english_voice = PiperVoice.load("en_GB-cori-high.onnx")
@@ -32,6 +28,11 @@ english_voice = PiperVoice.load("en_GB-cori-high.onnx")
 # Initialize audio streams
 english_stream = init_stream(english_voice)
 roman_stream = init_stream(roman_voice)
+
+play_audio(english_voice, "Initialization started", english_stream)
+# Load models
+model = YOLO("best_ncnn_model", task="detect")
+ort_session = ort.InferenceSession("amyco.onnx")
 
 # Load data
 class_names = np.load('classes.npy', allow_pickle=True)
@@ -51,6 +52,7 @@ cap.set(cv2.CAP_PROP_CONVERT_RGB, 1)
 BEST_THRESHOLD = 0.5713947415351868
 CONF_THRESHOLD = 0.5713947415351868
 MIN_THRESHOLD = 0.024
+play_audio(english_voice, "Initialization ended", english_stream)
 
 # Extract bounding box with highest confidence score
 def get_highest_confidence_box(results):
@@ -97,7 +99,7 @@ def process_frames():
     while True:
         frame1 = capture_frame(cap)
         if frame1 is None:
-            print("Camera not detected. Exiting...")
+            play_audio(english_voice, "Camera not detected. Exiting...", english_stream)
             break
 
         results1 = model(frame1, conf=CONF_THRESHOLD)
@@ -145,7 +147,7 @@ def process_frames():
 try:
     process_frames()
 except KeyboardInterrupt:
-    print("Detection interrupted by user.")
+    play_audio(english_voice, "Detection interrupted by user.", english_stream)
 finally:
     cap.release()
     english_stream.close()
