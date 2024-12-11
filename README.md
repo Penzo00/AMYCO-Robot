@@ -144,6 +144,9 @@ Converts all YOLO class labels in the dataset to a single class (mushroom).
 
 4. Reboot the Raspberry Pi to apply changes.
 
+5. Be sure to download Paola and Cory ONNX and JSON files in https://huggingface.co/rhasspy/piper-voices/tree/main.
+6. Download the missing Linux packages.
+
 ---
 
 ## Contributors
