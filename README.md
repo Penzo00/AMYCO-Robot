@@ -161,6 +161,6 @@ Converts all YOLO class labels in the dataset to a single class (mushroom).
 ---
 
 ## License
-This project is licensed under the MIT License. See the LICENSE file for details. (to be honest, there is no license)
+This project is licensed under the MIT License. See the LICENSE file for details.
 
 
