@@ -1,0 +1,4 @@
+File Name,ONNX Top1,ONNX Prob1,ONNX Top2,ONNX Prob2,ONNX Top3,ONNX Prob3,ONNX Top4,ONNX Prob4,ONNX Top5,ONNX Prob5
+Amanita muscaria.jpg,Amanita muscaria,0.98793274,Amanita stirps,0.011145455,Chalciporus piperatus,0.00045064936,Amanita chrysoblema,0.00043482264,Amanita persicina,4.3475998e-06
+Boletus aereus.jpg,Boletus aereus,0.56991076,Boletus variipes,0.22656716,Boletus edulis,0.12114634,Boletus durhamensis,0.03937335,Boletus barrowsii,0.008645249
+Chlorophyllum olivieri.jpg,Chlorophyllum olivieri,0.69716847,Chlorophyllum rhacodes,0.23541749,Leucoagaricus americanus,0.03018538,Macrolepiota procera,0.020327056,Leucocoprinus cepistipes,0.00048090762
